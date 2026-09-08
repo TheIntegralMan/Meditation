@@ -811,8 +811,20 @@ async function saveProfile(){
 let audioCtx = null;
 function getAudioCtx(){
   audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+  // iOS Safari (and especially standalone/home-screen PWAs) often create the
+  // context in a "suspended" state even inside a user-gesture handler, and
+  // never auto-resumes it in standalone mode. Always try to resume.
+  if(audioCtx.state === 'suspended'){ try{ audioCtx.resume(); }catch(e){} }
   return audioCtx;
 }
+// Extra unlock net for iOS standalone mode: on the very first tap anywhere,
+// create/resume the shared AudioContext so it's already running by the time
+// startAmbient()/playChime() need it.
+['touchend','mousedown','click'].forEach(evt=>{
+  document.addEventListener(evt, function unlockAudioOnce(){
+    try{ getAudioCtx(); }catch(e){}
+  }, {once:true, passive:true});
+});
 function playChime(){
   try{
     audioCtx = getAudioCtx();
